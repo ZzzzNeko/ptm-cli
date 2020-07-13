@@ -6,6 +6,8 @@ const download = require('download-git-repo')
 const templates = require('../tpl/template.json')
 const { getPackagePath, getProcessPath } = require('../lib/convert')
 const { setTemplateInfo } = require('../lib/template')
+const { resolve } = require('path')
+const walk = require('ignore-walk')
 
 function getSourceTypeLabel (type) {
   if(type === 'local') return '本地模板'
@@ -86,8 +88,20 @@ async function cacheTemplate (name, type, path, description, replace) {
 
   // 复制本地模板至缓存路径
   if(type === 'local') {
-    await fse.copy(getProcessPath(path), cacheTemplatePath)
-      .finally(() => spinner.stop())
+    // 根据 .gitignore 过滤
+    // TODO: 1. 判断 .gitignore 是否存在 2. 固定忽略 .git
+    const tplPath = getPackagePath(path)
+    const allowFiles = walk.sync({
+      path: getPackagePath(tplPath),
+      ignoreFiles: ['.gitignore'],
+      includeEmpty: true,
+    })
+    allowFiles.forEach(async file => {
+      const sourceFile = resolve(tplPath, file)
+      const targetFile = resolve(cacheTemplatePath, file)
+      await fse.copy(sourceFile, targetFile)
+    })
+    spinner.stop()
   }
 
   // 下载远端模板至缓存路径

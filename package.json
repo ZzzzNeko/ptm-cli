@@ -18,6 +18,7 @@
     "download-git-repo": "^3.0.2",
     "execa": "^4.0.2",
     "fs-extra": "^9.0.1",
+    "ignore-walk": "^3.0.3",
     "listr": "^0.14.3",
     "ora": "^4.0.4",
     "prompts": "^2.3.2"
