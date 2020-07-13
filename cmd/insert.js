@@ -88,14 +88,17 @@ async function cacheTemplate (name, type, path, description, replace) {
 
   // 复制本地模板至缓存路径
   if(type === 'local') {
-    // 根据 .gitignore 过滤
-    // TODO: 1. 判断 .gitignore 是否存在 2. 固定忽略 .git
+    /**
+     * NOTE: 
+     * 根据 .gitignore 过滤
+     * 若无 .gitignore 则 默认过滤 .git 与 node_modules
+     */
     const tplPath = getPackagePath(path)
     const allowFiles = walk.sync({
       path: getPackagePath(tplPath),
       ignoreFiles: ['.gitignore'],
       includeEmpty: true,
-    })
+    }).filter(file => !/(\.git|node_modules)\/.+/.test(file))
     allowFiles.forEach(async file => {
       const sourceFile = resolve(tplPath, file)
       const targetFile = resolve(cacheTemplatePath, file)
