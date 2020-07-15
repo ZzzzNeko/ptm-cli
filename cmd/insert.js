@@ -106,7 +106,8 @@ async function cacheTemplate(name, type, path, description, replace) {
         process.exit(1);
       })
     ).filter((file) => !/(\.git|node_modules)\/.+/.test(file));
-    allowFiles.forEach(async (file) => {
+
+    for (let file of allowFiles) {
       const sourceFile = resolve(sourceTemplatePath, file);
       const targetFile = resolve(targetTemplatePath, file);
       await fse.copy(sourceFile, targetFile).catch((error) => {
@@ -116,7 +117,7 @@ async function cacheTemplate(name, type, path, description, replace) {
         spinner.stop();
         process.exit(1);
       });
-    });
+    }
     spinner.stop();
   }
 
