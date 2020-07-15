@@ -1,4 +1,5 @@
 node_modules/
 tpl/
 !tpl/template.json
-yarn.lock
+*.lock
+*lock.json
