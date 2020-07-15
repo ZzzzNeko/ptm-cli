@@ -1,5 +1,4 @@
 node_modules/
 tpl/
-!tpl/template.json
 *.lock
 *lock.json
