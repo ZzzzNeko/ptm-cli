@@ -1,12 +1,13 @@
-const ora = require("ora");
+const { resolve } = require("path");
 const fse = require("fs-extra");
-const chalk = require("chalk");
 const prompts = require("prompts");
+const walk = require("ignore-walk");
+const chalk = require("chalk");
+const ora = require("ora");
 const download = require("download-git-repo");
 const { getPackagePath, getProcessPath } = require("../lib/convert");
 const { setTemplateInfo, getTemplateInfo } = require("../lib/template");
-const { resolve } = require("path");
-const walk = require("ignore-walk");
+const { onPromptCancel } = require("../lib/errorlog");
 
 function getSourceTypeLabel(type) {
   if (type === "local") return "本地模板";
@@ -170,7 +171,7 @@ async function insert(args, opts, shouldExist) {
       return console.log(chalk.red("模板不存在"));
   }
   const questions = generateQuestions(args.template, shouldExist, templateInfo);
-  const result = await prompts(questions);
+  const result = await prompts(questions, { onCancel: onPromptCancel });
   const { template = args.template, sourceType, path, description } = result;
   const replace = shouldExist;
   await cacheTemplate(template, sourceType, path, description, replace);

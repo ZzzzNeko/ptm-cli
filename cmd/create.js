@@ -6,6 +6,7 @@ const execa = require("execa");
 const listr = require("listr");
 const { getPackagePath, getProcessPath } = require("../lib/convert");
 const { getTemplateInfo } = require("../lib/template");
+const { onPromptCancel } = require("../lib/errorlog");
 
 async function generateQuestions(name, path) {
   const templates = await getTemplateInfo();
@@ -105,7 +106,7 @@ async function createProject(sourcePath, targetPath, answers) {
  */
 async function create(args, opts) {
   const questions = await generateQuestions(args.projectName, args.projectPath);
-  const answers = await prompts(questions);
+  const answers = await prompts(questions, { onCancel: onPromptCancel });
   const { projectName, projectPath, templateName } = answers;
   const sourcePath = getPackagePath(`tpl/${templateName}`);
   const targetPath = getProcessPath(projectPath, projectName);
