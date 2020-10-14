@@ -1,11 +1,12 @@
-const fse = require('fs-extra')
-const prompts = require('prompts')
-const { getPackagePath } = require('../lib/convert')
-const { getTemplateInfo, writeTemplates } = require('../lib/template')
-const chalk = require('chalk')
+const fse = require("fs-extra");
+const prompts = require("prompts");
+const chalk = require("chalk");
+const { getPackagePath } = require("../lib/convert");
+const { getTemplateInfo, writeTemplates } = require("../lib/template");
+const { onPromptCancel } = require("../lib/errorlog");
 
-function isTemplateExist (templates, name,) {
-  return Object.keys(templates).includes(name)
+function isTemplateExist(templates, name) {
+  return Object.keys(templates).includes(name);
 }
 
 /**
@@ -17,21 +18,23 @@ function isTemplateExist (templates, name,) {
 function generateQuestions(oldName, newName, templates) {
   const questions = [
     {
-      type: 'text',
-      name: 'oldName',
-      message: '需要改名的模板',
-      validate: value => isTemplateExist(templates, value, ) ? true : '模板不存在'
+      type: "text",
+      name: "oldName",
+      message: "需要改名的模板",
+      validate: (value) =>
+        isTemplateExist(templates, value) ? true : "模板不存在",
     },
     {
-      type: 'text',
-      name: 'newName',
-      message: '修改后模板名称',
-      validate: value => isTemplateExist(templates, value, ) ? '模板已存在' : true
-    }
-  ]
-  if(oldName) questions.shift()
-  if(newName) questions.shift()
-  return questions
+      type: "text",
+      name: "newName",
+      message: "修改后模板名称",
+      validate: (value) =>
+        isTemplateExist(templates, value) ? "模板已存在" : true,
+    },
+  ];
+  if (oldName) questions.shift();
+  if (newName) questions.shift();
+  return questions;
 }
 
 /**
@@ -40,21 +43,20 @@ function generateQuestions(oldName, newName, templates) {
  * @param { string } newName 新的模板名称
  */
 async function renameTemplate(oldName, newName) {
-  const oldPath = getPackagePath(`tpl/${oldName}`)
-  const newPath = getPackagePath(`tpl/${newName}`)
-  await fse.rename(oldPath, newPath)
-    .catch(error => {
-      console.log('======== 模板重命名失败 ========')
-      console.log(error)
-      console.log('================================')
-      process.exit(1)
-    })
-  console.log(chalk.grey('模板名称修改成功'))
-  const templates = await getTemplateInfo()
-  templates[newName] = templates[oldName]
-  delete templates[oldName]
-  await writeTemplates(templates)
-  console.log(chalk.green('Finish!!!'))
+  const oldPath = getPackagePath(`tpl/${oldName}`);
+  const newPath = getPackagePath(`tpl/${newName}`);
+  await fse.rename(oldPath, newPath).catch((error) => {
+    console.log("======== 模板重命名失败 ========");
+    console.log(error);
+    console.log("================================");
+    process.exit(1);
+  });
+  console.log(chalk.grey("模板名称修改成功"));
+  const templates = await getTemplateInfo();
+  templates[newName] = templates[oldName];
+  delete templates[oldName];
+  await writeTemplates(templates);
+  console.log(chalk.green("Finish!!!"));
 }
 
 /**
@@ -63,16 +65,19 @@ async function renameTemplate(oldName, newName) {
  * @param { object | null} opts 暂时为 null
  */
 async function rename(args, opts) {
-  const templates = await getTemplateInfo()
-  if(args.oldName && !isTemplateExist(templates, args.oldName))
-    return console.log(chalk.red('模板不存在'))
-  if(args.newName && isTemplateExist(templates, args.newName))
-    return console.log(chalk.red('模板已存在'))
+  const templates = await getTemplateInfo();
+  if (args.oldName && !isTemplateExist(templates, args.oldName))
+    return console.log(chalk.red("模板不存在"));
+  if (args.newName && isTemplateExist(templates, args.newName))
+    return console.log(chalk.red("模板已存在"));
 
-  const questions = generateQuestions(args.oldName, args.newName, templates)
-  const result = questions.length > 0 ? await prompts(questions) : {}
-  const { oldName = args.oldName, newName = args.newName } = result
-  await renameTemplate(oldName, newName)
+  const questions = generateQuestions(args.oldName, args.newName, templates);
+  const result =
+    questions.length > 0
+      ? await prompts(questions, { onCancel: onPromptCancel })
+      : {};
+  const { oldName = args.oldName, newName = args.newName } = result;
+  await renameTemplate(oldName, newName);
 }
 
-module.exports = rename
+module.exports = rename;

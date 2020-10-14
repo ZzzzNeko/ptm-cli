@@ -1,21 +1,21 @@
-const ora = require("ora");
-const fse = require("fs-extra");
-const chalk = require("chalk");
-const prompts = require("prompts");
-const download = require("download-git-repo");
-const templates = require("../tpl/template.json");
-const { getPackagePath, getProcessPath } = require("../lib/convert");
-const { setTemplateInfo } = require("../lib/template");
 const { resolve } = require("path");
+const fse = require("fs-extra");
+const prompts = require("prompts");
 const walk = require("ignore-walk");
+const chalk = require("chalk");
+const ora = require("ora");
+const download = require("download-git-repo");
+const { getPackagePath, getProcessPath } = require("../lib/convert");
+const { setTemplateInfo, getTemplateInfo } = require("../lib/template");
+const { onPromptCancel } = require("../lib/errorlog");
 
 function getSourceTypeLabel(type) {
   if (type === "local") return "本地模板";
   if (type === "remote") return "远端模板";
 }
 
-function isTemplateExist(value) {
-  return Object.keys(templates).includes(value);
+function isTemplateExist(value, templateInfo) {
+  return Object.keys(templateInfo).includes(value);
 }
 
 /**
@@ -23,7 +23,7 @@ function isTemplateExist(value) {
  * @param { string } template 模板名称
  * @param { boolean } shouldExist 模板是否应当存在，insert: false  update: true
  */
-function generateQuestions(template, shouldExist) {
+function generateQuestions(template, shouldExist, templateInfo) {
   const questions = [
     {
       type: "text",
@@ -31,10 +31,10 @@ function generateQuestions(template, shouldExist) {
       message: "模板名称",
       validate: (value) =>
         shouldExist
-          ? isTemplateExist(value)
+          ? isTemplateExist(value, templateInfo)
             ? true
             : "模板不存在"
-          : isTemplateExist(value)
+          : isTemplateExist(value, templateInfo)
           ? "模板已存在"
           : true,
     },
@@ -94,21 +94,21 @@ async function cacheTemplate(name, type, path, description, replace) {
      * 若无 .gitignore 则 默认过滤 .git 与 node_modules
      */
     const sourceTemplatePath = getProcessPath(path);
-    let allowFiles = await walk({
-      path: sourceTemplatePath,
-      ignoreFiles: [".gitignore"],
-      includeEmpty: true,
-    }).catch((error) => {
-      console.log("======== 查询当前模板失败 ========");
-      console.log(error);
-      console.log("==================================");
-      spinner.stop();
-      process.exit(1);
-    });
-    allowFiles = allowFiles.filter(
-      (file) => !/(\.git|node_modules)\/.+/.test(file)
-    );
-    allowFiles.forEach(async (file) => {
+    const allowFiles = (
+      await walk({
+        path: sourceTemplatePath,
+        ignoreFiles: [".gitignore"],
+        includeEmpty: true,
+      }).catch((error) => {
+        console.log("======== 查询当前模板失败 ========");
+        console.log(error);
+        console.log("==================================");
+        spinner.stop();
+        process.exit(1);
+      })
+    ).filter((file) => !/(\.git|node_modules)\/.+/.test(file));
+
+    for (let file of allowFiles) {
       const sourceFile = resolve(sourceTemplatePath, file);
       const targetFile = resolve(targetTemplatePath, file);
       await fse.copy(sourceFile, targetFile).catch((error) => {
@@ -118,7 +118,7 @@ async function cacheTemplate(name, type, path, description, replace) {
         spinner.stop();
         process.exit(1);
       });
-    });
+    }
     spinner.stop();
   }
 
@@ -163,14 +163,15 @@ async function cacheTemplate(name, type, path, description, replace) {
  * @param { boolean } shouldExist 模板是否应当存在，insert: false  update: true
  */
 async function insert(args, opts, shouldExist) {
+  const templateInfo = await getTemplateInfo();
   if (args.template) {
-    if (!shouldExist && isTemplateExist(args.template))
+    if (!shouldExist && isTemplateExist(args.template, templateInfo))
       return console.log(chalk.red("模板已存在"));
-    if (shouldExist && !isTemplateExist(args.template))
+    if (shouldExist && !isTemplateExist(args.template, templateInfo))
       return console.log(chalk.red("模板不存在"));
   }
-  const questions = generateQuestions(args.template, shouldExist);
-  const result = await prompts(questions);
+  const questions = generateQuestions(args.template, shouldExist, templateInfo);
+  const result = await prompts(questions, { onCancel: onPromptCancel });
   const { template = args.template, sourceType, path, description } = result;
   const replace = shouldExist;
   await cacheTemplate(template, sourceType, path, description, replace);
